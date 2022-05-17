@@ -1,4 +1,5 @@
 import pygame
+import math
 from pygame.event import Event
 import random
 
@@ -10,16 +11,17 @@ background_color = black
 robot_color = white
 path_color = green
 
-size = 60
-height = 1000
-width = 1400
+size = 25
+height = 380
+width = 500
 
 # distance per second
-speed = 500
+speed = 400
 frame_cap = 60
 clock = pygame.time.Clock()
 
 debug_draw_path = True
+debug_draw_background = True
 
 # init stuff
 pygame.init()
@@ -29,10 +31,11 @@ screen = pygame.display.set_mode((width, height))
 
 # variables
 game_is_running = True
+is_first_game_cycle = True
 path = []
 
-# possible game modes: 'MANUAL', 'SQUARE', 'Spiral' and 'RANDOM'
-game_mode = 'SQUARE'
+# possible game modes: 'MANUAL', 'SQUARE_SPIRAL', 'SPIRAL' and 'RANDOM'
+game_mode = 'SQUARE_SPIRAL'
 
 
 ####
@@ -53,14 +56,13 @@ def draw_robot(robot):
 
 def draw_path(robot):
     path.append((robot[0] + size / 2, robot[1] + size / 2))
-    for el in path:
-        pygame.draw.circle(screen, path_color, el, 2)
     if len(path) >= 2:
         pygame.draw.lines(screen, path_color, False, path)
 
 
 def draw(robot):
-    screen.fill(background_color)
+    if debug_draw_background:
+        screen.fill(background_color)
     if debug_draw_path:
         draw_path(robot)
     draw_robot(robot)
@@ -82,7 +84,12 @@ def fix_robot_pos(robot):
 def init_game_cycle():
     events = pygame.event.get()
     handle_close_events(events)
-    return clock.tick(frame_cap), events
+    ms_last_frame = clock.tick(frame_cap)
+    global is_first_game_cycle
+    if is_first_game_cycle:
+        ms_last_frame = 0
+        is_first_game_cycle = False
+    return ms_last_frame, events
 
 
 # different game loops
@@ -112,20 +119,19 @@ def square_game_loop():
     stop_left = 0
     stop_right = width - size
     stop_bottom = height - size
+    finished = False
     while game_is_running:
         ms_last_frame, events = init_game_cycle()
-        if stop_bottom - stop_top < - 2 * size or stop_right - stop_left < - 2 * size:
-            print("kleiner 0")
+        if finished:
             continue
-
         # normal movement
         if current_direction == 'RIGHT':
             robot[0] += speed * ms_last_frame / 1000
-        if current_direction == 'DOWN':
+        elif current_direction == 'DOWN':
             robot[1] += speed * ms_last_frame / 1000
-        if current_direction == 'LEFT':
+        elif current_direction == 'LEFT':
             robot[0] -= speed * ms_last_frame / 1000
-        if current_direction == 'UP':
+        elif current_direction == 'UP':
             robot[1] -= speed * ms_last_frame / 1000
         # change movement on borders
         if robot[0] > stop_right and current_direction == 'RIGHT':
@@ -133,29 +139,56 @@ def square_game_loop():
             robot[1] += robot[0] - stop_right
             robot[0] = stop_right
             stop_right -= size
-        if robot[1] > stop_bottom and current_direction == 'DOWN':
+            finished = (stop_bottom - stop_top) + size < 0
+        elif robot[1] > stop_bottom and current_direction == 'DOWN':
             current_direction = 'LEFT'
             robot[0] -= robot[1] - stop_bottom
             robot[1] = stop_bottom
             stop_bottom -= size
-        if robot[0] < stop_left and current_direction == 'LEFT':
+            finished = (stop_right - stop_left) + size < 0
+        elif robot[0] < stop_left and current_direction == 'LEFT':
             current_direction = 'UP'
             robot[1] += robot[0] - stop_left
             robot[0] = stop_left
             stop_left += size
-        if robot[1] < stop_top and current_direction == 'UP':
+            finished = (stop_bottom - stop_top) + size < 0
+        elif robot[1] < stop_top and current_direction == 'UP':
             current_direction = 'RIGHT'
             robot[0] -= robot[1] - stop_top
             robot[1] = stop_top
             stop_top += size
+            finished = (stop_right - stop_left) + size < 0
+        draw(robot)
+
+
+def circle_game_loop():
+    print('Circle Mode')
+    start_position = [(width-size)/2, (height-size)/2]
+    robot = [start_position[0], start_position[1]]
+    current_radius = 0
+    current_angle = 0
+    while game_is_running:
+        ms_last_frame, events = init_game_cycle()
+        temp_speed = speed * ms_last_frame / 1000
+        angle_speed = temp_speed / math.sqrt(size**2/(4*math.pi**2)+(current_radius**2))
+        radius_speed = math.sqrt(temp_speed**2 - current_radius**2 * angle_speed**2)
+        # angle_speed = speed / 200 * ms_last_frame / 1000
+        # radius_speed = size / cycle_time
+        current_radius += radius_speed
+        current_angle += angle_speed
+        robot[0] = start_position[0] + math.cos(current_angle) * current_radius
+        robot[1] = start_position[1] + math.sin(current_angle) * current_radius
+        fix_robot_pos(robot)
         draw(robot)
 
 
 def start():
     if game_mode == 'MANUAL':
         manual_game_loop()
-    elif game_mode == 'SQUARE':
+    elif game_mode == 'SQUARE_SPIRAL':
         square_game_loop()
+    elif game_mode == 'SPIRAL':
+        circle_game_loop()
     pygame.quit()
 
 

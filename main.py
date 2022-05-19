@@ -149,6 +149,40 @@ def manual_game_loop():
 def square_game_loop():
     print('Square Mode')
     robot = [0.0, 0.0]
+    current_direction = 'RIGHT'
+    while game_is_running:
+        ms_last_frame, events = init_game_cycle()
+        # normal movement
+        if current_direction == 'RIGHT':
+            robot[0] += speed * ms_last_frame / 1000
+        elif current_direction == 'DOWN':
+            robot[1] += speed * ms_last_frame / 1000
+        elif current_direction == 'LEFT':
+            robot[0] -= speed * ms_last_frame / 1000
+        elif current_direction == 'UP':
+            robot[1] -= speed * ms_last_frame / 1000
+        if robot[0] > (width - size) and current_direction == 'RIGHT':
+            current_direction = 'DOWN'
+            robot[1] += robot[0] - (width - size)
+            robot[0] = (width - size)
+        elif robot[1] > height - size and current_direction == 'DOWN':
+            current_direction = 'LEFT'
+            robot[0] -= robot[1] - (height - size)
+            robot[1] = height - size
+        elif robot[0] < 0 and current_direction == 'LEFT':
+            current_direction = 'UP'
+            robot[1] += robot[0]
+            robot[0] = 0
+        elif robot[1] < 0 and current_direction == 'UP':
+            current_direction = 'RIGHT'
+            robot[0] -= robot[1]
+            robot[1] = 0
+        draw(robot)
+
+
+def square_spiral_game_loop():
+    print('Square Spiral Mode')
+    robot = [0.0, 0.0]
     current_direction = 'UP'
     stop_top = 0
     stop_left = 0
@@ -258,6 +292,7 @@ def menu_loop(selected_index):
     ]
     texts = [
         [font.render("Manual", True, white), 'MANUAL'],
+        [font.render("Square", True, white), 'SQUARE'],
         [font.render("Square Spiral", True, white), 'SQUARE_SPIRAL'],
         [font.render("Spiral", True, white), 'SPIRAL'],
         [font.render("Random", True, white), 'RANDOM'],
@@ -294,7 +329,7 @@ def menu_loop(selected_index):
                 temp_height_help += key.get_height()
         index = 0
         offset = 12
-        border_offset = offset / 2
+        border_offset = 3
         sum_height = 0
         for text in texts:
             sum_height += text[0].get_height() + offset
@@ -312,7 +347,7 @@ def menu_loop(selected_index):
                     text[0].get_width() + border_offset,
                     text[0].get_height() + border_offset,
                 ), 1)
-            temp_height += text[0].get_height()
+            temp_height += text[0].get_height() + offset
             index += 1
         pygame.display.update()
         clock.tick(frame_cap)
@@ -330,8 +365,10 @@ def start():
         screen.fill(black)
         if mode == 'MANUAL':
             manual_game_loop()
-        elif mode == 'SQUARE_SPIRAL':
+        if mode == 'SQUARE':
             square_game_loop()
+        elif mode == 'SQUARE_SPIRAL':
+            square_spiral_game_loop()
         elif mode == 'SPIRAL':
             circle_game_loop()
         elif mode == 'RANDOM':
